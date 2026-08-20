@@ -803,14 +803,16 @@
         <div class="progress-track"><div class="progress-fill" style="width:${Math.min(progress, 100)}%"></div></div>
         ${phonemeChartHtml()}
         <section class="sentence-panel">
+          <div class="keyboard-hint">
+          <button type="button" class="btn-icon" id="speak-btn" aria-label="聽發音" title="聽發音">${speakerSvg()}</button>
+        </div>
+          
           <div class="sentence">${cells}</div>
           <div class="feedback-slot">
             ${feedback}
           </div>
+        
         </section>
-        <div class="keyboard-hint">
-          <button type="button" class="btn-icon" id="speak-btn" aria-label="聽發音" title="聽發音">${speakerSvg()}</button>
-        </div>
       </main>
     `;
 

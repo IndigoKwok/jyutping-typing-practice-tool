@@ -52,5 +52,17 @@
   });
   keyboard.addEventListener("contextmenu", (event) => event.preventDefault());
 
+  keyboard.style.display = "none";
   document.body.appendChild(keyboard);
+
+  const syncVisibility = () => {
+    const b = document.body;
+    const show = b.dataset.screen === "practice" && b.dataset.modal === "none";
+    keyboard.style.display = show ? "" : "none";
+  };
+  new MutationObserver(syncVisibility).observe(document.body, {
+    attributes: true,
+    attributeFilter: ["data-screen", "data-modal"]
+  });
+  syncVisibility();
 })();

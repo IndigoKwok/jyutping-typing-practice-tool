@@ -882,3 +882,61 @@ body[data-screen="practice"][data-modal="none"] .vkb {
     display: none;
   }
 }
+
+.keyboard-hint {
+  justify-content: flex-end;
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+@media (pointer: coarse) {
+  body[data-screen="practice"] .app {
+    padding: 10px 10px 250px;
+  }
+
+  body[data-screen="practice"] .topbar {
+    padding-bottom: 8px;
+  }
+
+  body[data-screen="practice"] .progress-row {
+    margin: 8px 0 6px;
+  }
+
+  body[data-screen="practice"] .sentence-panel {
+    margin-top: 8px;
+    padding: 12px 8px 12px;
+  }
+
+  body[data-screen="practice"] .sentence {
+    min-height: 0;
+    gap: 6px 4px;
+  }
+
+  body[data-screen="practice"] .char-cell {
+    min-width: 34px;
+    gap: 3px;
+  }
+
+  body[data-screen="practice"] .char-btn {
+    font-size: 1.5rem;
+    padding: 0 4px;
+  }
+
+  body[data-screen="practice"] .punct {
+    font-size: 1.1rem;
+  }
+
+  body[data-screen="practice"] .slot {
+    font-size: 12px;
+  }
+
+  body[data-screen="practice"] .feedback-slot {
+    min-height: 52px;
+    margin-top: 10px;
+  }
+
+  body[data-screen="practice"] .feedback {
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+}
