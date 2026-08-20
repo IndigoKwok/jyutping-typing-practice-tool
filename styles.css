@@ -873,6 +873,12 @@ body[data-screen="practice"][data-modal="none"] .vkb {
 
 @media (pointer: coarse) {
   body[data-screen="practice"][data-modal="none"] {
-    padding-bottom: 200px;
+    padding-bottom: 250px;
+  }
+}
+
+@media (pointer: coarse) {
+  .practice .phoneme-chart {
+    display: none;
   }
 }

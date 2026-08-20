@@ -6,11 +6,8 @@
   const ROWS = [
     ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
     ["a", "s", "d", "f", "g", "h", "j", "k", "l"],
-    [
-      { label: "⌫", key: "Backspace", wide: true },
-      "z", "x", "c", "v", "b", "n", "m",
-      { label: "確認", key: "Enter", wide: true }
-    ]
+    ["z", "x", "c", "v", "b", "n", "m", { label: "⌫", key: "Backspace", wide: true }],
+    [{ label: "確認", key: "Enter", wide: true }]
   ];
 
   const keyboard = document.createElement("div");
