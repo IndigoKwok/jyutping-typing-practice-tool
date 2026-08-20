@@ -21,7 +21,9 @@
     USER_SENTENCE_BANK.length > 0
       ? USER_SENTENCE_BANK
       : SENTENCE_BANK;
-  const VOCAB_CATS = Object.keys(POLYU_VOCAB);
+  const VOCAB_CATS = Object.keys(FAANZYUN_VOCAB).concat(
+    typeof EDB_VOCAB !== "undefined" ? Object.keys(EDB_VOCAB) : []
+  );
   const SENTENCE_CATS = Object.keys(POLYU_SENTENCES);
 
   const app = document.getElementById("app");
@@ -654,7 +656,11 @@
 
   function buildSessionBank() {
     if (settings.chapterType === "vocab") {
-      return (POLYU_VOCAB[settings.chapter] || []).map((item) => ({
+      const vocabChapter =
+        FAANZYUN_VOCAB[settings.chapter] ||
+        (typeof EDB_VOCAB !== "undefined" ? EDB_VOCAB[settings.chapter] : null) ||
+        [];
+      return vocabChapter.map((item) => ({
         text: item.word,
         chars: item.chars
       }));
@@ -1145,3 +1151,4 @@
   window.addEventListener("keydown", handleGlobalKeydown);
   render();
 })();
+
