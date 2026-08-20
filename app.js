@@ -996,6 +996,8 @@
   }
 
   function render() {
+    document.body.dataset.screen = state.screen;
+    document.body.dataset.modal = state.settingsOpen || state.chapterOpen ? "open" : "none";
     if (state.screen === "start") {
       renderStart();
     } else if (state.screen === "practice") {
