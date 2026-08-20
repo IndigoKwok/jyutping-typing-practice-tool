@@ -819,7 +819,7 @@ button {
 
 .vkb {
   display: none;
-  position: fixed;
+  position: static;
   left: 0;
   right: 0;
   bottom: 0;
@@ -848,7 +848,7 @@ body[data-screen="practice"][data-modal="none"] .vkb {
 .vkb-key {
   flex: 1 1 0;
   max-width: 46px;
-  height: 52px;
+  height: 48px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--panel-soft);
@@ -871,11 +871,7 @@ body[data-screen="practice"][data-modal="none"] .vkb {
   color: #ffffff;
 }
 
-@media (pointer: coarse) {
-  body[data-screen="practice"][data-modal="none"] {
-    padding-bottom: 250px;
-  }
-}
+
 
 @media (pointer: coarse) {
   .practice .phoneme-chart {
@@ -891,7 +887,7 @@ body[data-screen="practice"][data-modal="none"] .vkb {
 
 @media (pointer: coarse) {
   body[data-screen="practice"] .app {
-    padding: 10px 10px 250px;
+    padding: 10px 10px 16px;
   }
 
   body[data-screen="practice"] .topbar {
@@ -938,5 +934,26 @@ body[data-screen="practice"][data-modal="none"] .vkb {
   body[data-screen="practice"] .feedback {
     padding: 8px 10px;
     font-size: 14px;
+  }
+}
+
+@media (pointer: coarse) {
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+  }
+
+  body .app {
+    flex: 1 0 auto;
+  }
+
+  body[data-screen="practice"] .btn-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  body[data-screen="practice"] .feedback-slot {
+    min-height: 44px;
   }
 }
