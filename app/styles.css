@@ -179,16 +179,6 @@ button {
   margin: 0 auto;
 }
 
-.progress-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin: 18px 0 10px;
-  color: var(--muted);
-  font-size: 13px;
-}
-
 .progress-track {
   height: 6px;
   border-radius: 999px;
@@ -819,17 +809,18 @@ button {
 
 .vkb {
   display: none;
-  position: static;
-  margin-bottom: 16px;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: fixed;
+  left: 8px;
+  right: 8px;
+  bottom: calc(10px + env(safe-area-inset-bottom));
   z-index: 40;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+  gap: 7px;
+  padding: 10px 10px 12px;
   background: var(--panel);
-  border-top: 1px solid var(--line);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
   touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
@@ -842,20 +833,28 @@ body[data-screen="practice"][data-modal="none"] .vkb {
 
 .vkb-row {
   display: flex;
-  gap: 5px;
+  gap: 6px;
   justify-content: center;
+}
+
+.vkb-row-2 {
+  padding: 0 14px;
 }
 
 .vkb-key {
   flex: 1 1 0;
-  max-width: 46px;
-  height: 48px;
+  max-width: 48px;
+  height: 50px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-bottom-width: 3px;
+  border-radius: 9px;
   background: var(--panel-soft);
   color: var(--text);
   font-size: 17px;
   font-weight: 600;
+  letter-spacing: 0.3px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: transform 0.06s ease, background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
   touch-action: manipulation;
 }
 
@@ -869,7 +868,9 @@ body[data-screen="practice"][data-modal="none"] .vkb {
 .vkb-key:active {
   background: var(--accent);
   border-color: var(--accent);
+  border-bottom-width: 1px;
   color: #ffffff;
+  transform: translateY(1px) scale(0.97);
 }
 
 
@@ -893,10 +894,6 @@ body[data-screen="practice"][data-modal="none"] .vkb {
 
   body[data-screen="practice"] .topbar {
     padding-bottom: 8px;
-  }
-
-  body[data-screen="practice"] .progress-row {
-    margin: 8px 0 6px;
   }
 
   body[data-screen="practice"] .sentence-panel {
@@ -1144,4 +1141,74 @@ body[data-screen="practice"][data-modal="none"] .vkb {
   width: 100%;
   color: var(--muted, #888);
   font-size: 0.85rem;
+}
+
+.vkb-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.vkb-section-label {
+  flex: 0 0 32px;
+  padding-top: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.vkb-row-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.vkb-key.vkb-pick {
+  flex: 0 1 auto;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 10px;
+  font-size: 15px;
+}
+
+.vkb-key.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+.vkb-key.disabled {
+  opacity: 0.35;
+}
+
+.vkb-confirm-row {
+  margin-top: 2px;
+}
+
+@media (pointer: coarse) {
+  body[data-screen="practice"][data-kb="qwerty"] .app {
+    padding-bottom: 250px;
+  }
+
+  body[data-screen="practice"][data-kb="picker"] .app {
+    padding-bottom: 420px;
+  }
+}
+
+.vkb-key-wide[data-key="Enter"],
+.vkb-confirm-row .vkb-key-wide {
+  font-weight: 700;
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--panel);
+}
+
+.vkb-key-wide[data-key="Enter"].pressed,
+.vkb-key-wide[data-key="Enter"]:active,
+.vkb-confirm-row .vkb-key-wide.pressed,
+.vkb-confirm-row .vkb-key-wide:active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
 }

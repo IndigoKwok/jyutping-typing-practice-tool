@@ -157,6 +157,7 @@
     sentenceIndex: 0,
     charIndex: 0,
     currentInput: "",
+    pick: { initial: "", nucleus: "", coda: "" },
     answers: [],
     records: [],
     correctCount: 0,
@@ -177,6 +178,7 @@
       sentenceCount: 10,
       soundEnabled: true,
       theme: "light",
+      keyboardMode: "qwerty",
       wrongRemoveStreak: 3
     };
   }
@@ -206,6 +208,7 @@
         sentenceCount: parsed.sentenceCount === "inf" || SESSION_OPTIONS.includes(parsed.sentenceCount)
           ? parsed.sentenceCount
           : defaults.sentenceCount,
+      keyboardMode: parsed.keyboardMode === "picker" ? "picker" : "qwerty",
         soundEnabled: typeof parsed.soundEnabled === "boolean" ? parsed.soundEnabled : defaults.soundEnabled,
         theme: ["light", "dark", "system"].includes(parsed.theme) ? parsed.theme : defaults.theme,
         wrongRemoveStreak: [1, 3].includes(parsed.wrongRemoveStreak) ? parsed.wrongRemoveStreak : defaults.wrongRemoveStreak
@@ -377,7 +380,7 @@
         w: entry.w,
         weak: (entry.w + 1) / (entry.r + entry.w + 2)
       }))
-      .filter((entry) => entry.r + entry.w >= 3)
+      .filter((entry) => entry.r + entry.w >= 3 && entry.w >= 1)
       .sort((a, b) => b.weak - a.weak || b.w - a.w)
       .slice(0, limit);
   }
@@ -1045,12 +1048,13 @@
     `;
   }
 
-  function headerHtml(progressLabel, showSettle) {
+  function headerHtml(progressLabel, showSettle, showHome) {
     return `
       <header class="topbar">
         <div class="brand"><span class="brand-mark">粵拼</span>打字練習</div>
         ${progressLabel ? `<div class="topbar-note">${progressLabel}</div>` : ""}
         <div class="topbar-actions">
+          ${showHome ? `<button type="button" class="icon-btn text-btn" id="home-btn">主頁</button>` : ""}
           ${showSettle ? `<button type="button" class="icon-btn text-btn" id="settle-btn">結算</button>` : ""}
           <button type="button" class="icon-btn text-btn" id="chapter-btn">章節</button>
           <button type="button" class="icon-btn" id="settings-btn" aria-label="設定" title="設定">${gearSvg()}</button>
@@ -1067,6 +1071,14 @@
     const settleButton = document.getElementById("settle-btn");
     if (settleButton) {
       settleButton.addEventListener("click", settleSession);
+    }
+    const homeButton = document.getElementById("home-btn");
+    if (homeButton) {
+      homeButton.addEventListener("click", () => {
+        if (state.screen === "practice" && !window.confirm("離開會放棄今次練習，確定返回主頁？")) return;
+        state.screen = "start";
+        render();
+      });
     }
     const button = document.getElementById("settings-btn");
     if (button) {
@@ -1107,6 +1119,14 @@
             <span>主題</span>
             <div class="segmented" id="setting-theme">${themeButtons}</div>
           </div>
+          ${isCoarsePointer() ? `
+          <div class="setting-row">
+            <span>鍵盤樣式</span>
+            <div class="segmented" id="setting-kb">
+              <button type="button" data-kb="qwerty" class="${settings.keyboardMode === "qwerty" ? "active" : ""}">26 鍵</button>
+              <button type="button" data-kb="picker" class="${settings.keyboardMode === "picker" ? "active" : ""}">聲韻選擇</button>
+            </div>
+          </div>` : ""}
           <div class="setting-row">
             <span>錯詞移出</span>
             <div class="segmented" id="setting-streak">
@@ -1160,9 +1180,9 @@
           <div class="setting-row">
             <span>學習類型</span>
             <div class="segmented" id="chapter-type">
-              <button type="button" data-chapter-type="sentences" class="${legacyType === "sentences" ? "active" : ""}">學習句子</button>
-              <button type="button" data-chapter-type="vocab" class="${legacyType === "vocab" ? "active" : ""}">學習詞彙</button>
               <button type="button" data-chapter-type="single" class="${legacyType === "single" ? "active" : ""}">學習單字</button>
+              <button type="button" data-chapter-type="vocab" class="${legacyType === "vocab" ? "active" : ""}">學習詞彙</button>
+              <button type="button" data-chapter-type="sentences" class="${legacyType === "sentences" ? "active" : ""}">學習句子</button>
             </div>
           </div>
           <div class="setting-row">
@@ -1326,6 +1346,14 @@
         render();
       });
     });
+    document.querySelectorAll("#setting-kb button").forEach((button) => {
+      button.addEventListener("click", () => {
+        settings.keyboardMode = button.dataset.kb;
+        resetPick();
+        saveSettings();
+        render();
+      });
+    });
   }
 
   function buildSessionBank() {
@@ -1444,6 +1472,7 @@
     state.currentInput = "";
     state.answers = [];
     state.records = [];
+    resetPick();
     state.correctCount = 0;
     state.totalCount = 0;
     state.locked = false;
@@ -1475,6 +1504,7 @@
   }
 
   function renderPractice() {
+    syncShellDataset();
     const sentence = currentSentence();
     const chineseCount = sentence.chars.filter((item) => isChineseChar(item.c)).length;
     const answeredCount = state.answers.filter(Boolean).length;
@@ -1500,7 +1530,7 @@
         full = `<div class="full-jp">${answer.correct ? "✓" : "✗"} ${escapeHtml(answer.expected)}</div>`;
       } else if (index === state.charIndex) {
         className += " current";
-        slot = escapeHtml(state.currentInput);
+        slot = escapeHtml(state.currentInput || pickSlotText());
       }
       return `
         <div class="${className}">
@@ -1528,12 +1558,8 @@
       ? `無限 · 第 ${state.sessionDone + 1} 句`
       : `第 ${state.sentenceIndex + 1} / ${state.sentences.length} 句`;
     app.innerHTML = `
-      ${headerHtml(progressNote, true)}
+      ${headerHtml(progressNote, true, true)}
       <main class="practice">
-        <div class="progress-row">
-          <span>字 ${Math.min(answeredCount + 1, chineseCount)} / ${chineseCount}</span>
-          <span>答對 ${state.correctCount} / ${state.totalCount}</span>
-        </div>
         <div class="progress-track"><div class="progress-fill" style="width:${Math.min(progress, 100)}%"></div></div>
         ${phonemeChartHtml()}
         <section class="sentence-panel">
@@ -1560,89 +1586,8 @@
     });
   }
 
-  function summarizeRecords(records) {
-    const charMap = new Map();
-    const initialMap = new Map();
-    const finalMap = new Map();
-    const tally = (map, key, correct, wrong) => {
-      if (!map.has(key)) map.set(key, { count: 0, correct, wrong });
-      map.get(key).count += 1;
-    };
-
-    for (const record of records) {
-      if (!charMap.has(record.char)) {
-        charMap.set(record.char, { count: 0, jyutpings: new Set(), sentences: new Set() });
-      }
-      const charInfo = charMap.get(record.char);
-      charInfo.count += 1;
-      charInfo.jyutpings.add(record.expected);
-      if (record.sentence) charInfo.sentences.add(record.sentence);
-
-      const expected = parseSyllable(record.expected);
-      const actual = parseSyllable(record.typed);
-
-      if (expected.initial !== actual.initial) {
-        tally(initialMap, `${expected.initial || "∅"} → ${actual.initial || "∅"}`, expected.initial, actual.initial);
-      }
-      if (expected.final !== actual.final || expected.coda !== actual.coda) {
-        let label = `${expected.final || "∅"} → ${actual.final || "∅"}`;
-        if (expected.nucleus !== actual.nucleus) {
-          label += `（${expected.nucleus || "∅"} → ${actual.nucleus || "∅"}）`;
-        }
-        tally(finalMap, label, expected.final, actual.final);
-        if (expected.coda !== actual.coda) {
-          tally(finalMap, `${expected.coda || "∅"} → ${actual.coda || "∅"}`, expected.final, actual.final);
-        }
-      }
-    }
-
-    const exampleChar = (arr) => (Array.isArray(arr) ? arr : []).find((ch) => /[\u3400-\u9fff]/.test(ch));
-    const toItems = (map, exampleMap) => [...map.entries()]
-      .map(([label, value]) => ({
-        label,
-        count: value.count,
-        correct: { key: value.correct || "", char: exampleChar(exampleMap[value.correct] || []) },
-        wrong: { key: value.wrong || "", char: exampleChar(exampleMap[value.wrong] || []) }
-      }))
-      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
-
-    const chars = [...charMap.entries()]
-      .map(([char, info]) => ({ char, count: info.count, jyutpings: [...info.jyutpings], sentences: [...info.sentences] }))
-      .sort((a, b) => b.count - a.count || a.char.localeCompare(b.char));
-
-    return {
-      chars,
-      initials: toItems(initialMap, INITIAL_EXAMPLES),
-      finals: toItems(finalMap, FINAL_EXAMPLES)
-    };
-  }
-
-  function patternRows(list) {
-    if (!list.length) return "";
-    const example = (side, tag) => {
-      if (!side) return "";
-      const key = side.key ? escapeHtml(side.key) : "零聲母";
-      const char = side.char ? escapeHtml(side.char) : "";
-      const speak = side.char ? `<button type="button" class="mini-speak" data-sentence="${escapeHtml(side.char)}" aria-label="聽「${escapeHtml(side.char)}」的發音" title="聽「${escapeHtml(side.char)}」的發音">${speakerSvg()}</button>` : "";
-      return `<span class="px-side">${escapeHtml(tag)}</span><span class="px-key">${key}</span>${char ? `<span class="px-char">${char}</span>` : ""}${speak}`;
-    };
-    return `
-      <div class="pattern-list">
-        ${list.map((item) => `
-          <div class="pattern-row">
-            <span class="pattern">${escapeHtml(item.label)}</span>
-            <span class="pattern-count">×${item.count}</span>
-            <span class="pattern-example">
-              <span class="px-item">${example(item.correct, "正")}</span>
-              <span class="px-item">${example(item.wrong, "你讀")}</span>
-            </span>
-          </div>
-        `).join("")}
-      </div>
-    `;
-  }
-
   function renderResults() {
+    syncShellDataset();
     const wrong = state.records;
 
     if (!wrong.length) {
@@ -1658,18 +1603,6 @@
       return;
     }
 
-    const accuracy = state.totalCount ? Math.round((state.correctCount / state.totalCount) * 100) : 100;
-    const summary = summarizeRecords(wrong);
-
-    const charChips = summary.chars.map((item) => `
-      <span class="chip">
-        <span class="chip-char">${escapeHtml(item.char)}</span>
-        <span class="chip-count">×${item.count}</span>
-        <span class="chip-jp">${item.jyutpings.map((jp) => escapeHtml(jp)).join(" / ")}</span>
-        <button type="button" class="mini-speak" data-sentence="${escapeHtml(item.sentences[0] || "")}" aria-label="聽 ${escapeHtml(item.char)} 的發音">${speakerSvg()}</button>
-      </span>
-    `).join("");
-
     const recordsHtml = `
       <section class="records">
         <h2>錯誤記錄</h2>
@@ -1683,7 +1616,6 @@
             <span class="jp">${escapeHtml(item.expected)}</span>
             <span class="type">${escapeHtml(item.errorType)}</span>
             <span class="analysis">
-              ${item.tip ? `<span class="tip-line">${escapeHtml(item.tip)}</span>` : ""}
               <span class="analysis-line">${escapeHtml(item.analysis)}</span>
             </span>
           </div>
@@ -1695,39 +1627,12 @@
       ${headerHtml("完成")}
       <main class="results">
         <h1>練習結果</h1>
-        <div class="score">
-          <div class="score-num">${accuracy}%</div>
-          <div class="score-label">正確率</div>
-        </div>
-        <div class="score-meta">答對 ${state.correctCount} / ${state.totalCount} 字</div>
-        <section class="summary">
-          <h2>錯誤總結</h2>
-          <div class="summary-block">
-            <h3>打錯的漢字</h3>
-            <div class="chip-list">${charChips}</div>
-          </div>
-          ${summary.initials.length ? `
-            <div class="summary-block">
-              <h3>聲母弱點</h3>
-              ${patternRows(summary.initials)}
-            </div>
-          ` : ""}
-          ${summary.finals.length ? `
-            <div class="summary-block">
-              <h3>韻母／韻尾弱點</h3>
-              ${patternRows(summary.finals)}
-            </div>
-          ` : ""}
-        </section>
         ${recordsHtml}
         <button id="retry-btn" class="btn-primary" type="button">再練一次</button>
       </main>
     `;
 
     bindHeader();
-    document.querySelectorAll(".mini-speak").forEach((button) => {
-      button.addEventListener("click", () => speakChinese(button.dataset.sentence));
-    });
     document.getElementById("retry-btn").addEventListener("click", startSession);
   }
 
@@ -1776,7 +1681,7 @@
         <h1>學習報告</h1>
         <section class="report-card">
           <h2>薄弱韻母 Top 10</h2>
-          ${weak.length ? `<div class="weak-list">${weakRows}</div>` : '<p class="report-empty">仲未夠數據，每個韻母練夠 3 次先會上榜。</p>'}
+          ${weak.length ? `<div class="weak-list">${weakRows}</div>` : '<p class="report-empty">仲未夠數據：韻母要練夠 3 次、至少錯過 1 次先會上榜。</p>'}
         </section>
         <section class="report-card">
           <h2>錯詞本</h2>
@@ -1814,9 +1719,14 @@
     });
   }
 
-  function render() {
+  function syncShellDataset() {
     document.body.dataset.screen = state.screen;
     document.body.dataset.modal = state.settingsOpen || state.chapterOpen ? "open" : "none";
+    document.body.dataset.kb = settings.keyboardMode;
+  }
+
+  function render() {
+    syncShellDataset();
     if (state.screen === "start") {
       renderStart();
     } else if (state.screen === "report") {
@@ -1838,6 +1748,68 @@
       app.appendChild(wrapper.firstElementChild);
       bindChapterModal();
     }
+  }
+
+  function isCoarsePointer() {
+    return Boolean(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+  }
+
+  function pickerMode() {
+    return isCoarsePointer() && settings.keyboardMode === "picker";
+  }
+
+  function resetPick() {
+    state.pick = { initial: "", nucleus: "", coda: "" };
+  }
+
+  function pickSlotText() {
+    if (!pickerMode()) return "";
+    const pick = state.pick;
+    if (!pick.initial && !pick.nucleus && !pick.coda) return "";
+    const parts = [];
+    if (pick.initial) parts.push(pick.initial);
+    if (pick.nucleus) parts.push(pick.nucleus);
+    if (pick.coda) parts.push(pick.coda);
+    return parts.join(" + ") + (pick.nucleus ? ` = ${pick.initial}${pick.nucleus}${pick.coda}` : "");
+  }
+
+  function syncVkbState() {
+    if (!pickerMode()) return;
+    window.dispatchEvent(new CustomEvent("vkb-state", { detail: { ...state.pick } }));
+  }
+
+  function handleVkbPick(event) {
+    if (state.chapterOpen || state.settingsOpen) return;
+    if (state.screen !== "practice") return;
+    const detail = (event && event.detail) || {};
+    const kind = detail.kind;
+    const value = detail.value || "";
+    if (state.locked) {
+      advance();
+      if (kind === "confirm") return;
+    }
+    if (kind === "confirm") {
+      if (!state.pick.nucleus) return;
+      state.currentInput = `${state.pick.initial}${state.pick.nucleus}${state.pick.coda}`;
+      resetPick();
+      submit();
+      syncVkbState();
+      return;
+    }
+    if (kind === "initial") {
+      state.pick.initial = state.pick.initial === value ? "" : value;
+    } else if (kind === "nucleus") {
+      state.pick.nucleus = value;
+      if (value === "m" || value === "ng") state.pick.coda = "";
+    } else if (kind === "coda") {
+      if (!state.pick.nucleus || state.pick.nucleus === "m" || state.pick.nucleus === "ng") return;
+      state.pick.coda = state.pick.coda === value ? "" : value;
+    } else {
+      return;
+    }
+    state.currentInput = "";
+    renderPractice();
+    syncVkbState();
   }
 
   function updateSlot() {
@@ -1886,6 +1858,7 @@
 
   function advance() {
     const sentence = currentSentence();
+    resetPick();
     const next = nextChineseIndex(sentence, state.charIndex + 1);
     if (next < sentence.chars.length) {
       state.charIndex = next;
@@ -1978,6 +1951,8 @@
   applyTheme();
   resetPhonemeWeights();
   window.addEventListener("keydown", handleGlobalKeydown);
+  window.addEventListener("vkb-pick", handleVkbPick);
+  window.addEventListener("vkb-query", () => syncVkbState());
   initSync();
   render();
 })();
