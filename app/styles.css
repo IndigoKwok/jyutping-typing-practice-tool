@@ -1598,3 +1598,26 @@ select:focus-visible {
     height: 34px;
   }
 }
+.start .btn-primary,
+.start .btn-ghost {
+  width: 200px;
+  min-height: 44px;
+  justify-content: center;
+}
+
+.setting-row.kinds-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.kinds-row #chapter-type {
+  display: flex;
+}
+
+.kinds-row #chapter-type button {
+  flex: 1;
+  padding: 8px 4px;
+  font-size: 12px;
+  white-space: nowrap;
+}

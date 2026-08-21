@@ -1151,13 +1151,15 @@
     const draft = state.chapterDraft || { bookId: settings.bookId, chapter: settings.chapter };
     const fallbackBook = findBook(settings.bookId) || BOOKS[0];
     const legacyType = draft.legacyType ||
-      (fallbackBook.type === "vocab" || fallbackBook.type === "wrong" ? "vocab" : fallbackBook.type === "single" ? "single" : "sentences");
+      (fallbackBook.type === "vocab" ? "vocab" : fallbackBook.type === "wrong" ? "wrong" : fallbackBook.type === "single" ? "single" : "sentences");
     const pool = BOOKS.filter((item) =>
       legacyType === "vocab"
-        ? item.type === "vocab" || item.type === "wrong"
-        : legacyType === "single"
-          ? item.type === "single"
-          : item.type !== "vocab" && item.type !== "wrong" && item.type !== "single"
+        ? item.type === "vocab"
+        : legacyType === "wrong"
+          ? item.type === "wrong"
+          : legacyType === "single"
+            ? item.type === "single"
+            : item.type !== "vocab" && item.type !== "wrong" && item.type !== "single"
     );
     const book = (draft.bookId && pool.find((item) => item.id === draft.bookId)) || pool[0];
     const chapters = book.type === "wrong" ? draftWrongChapters() : book.chapters;
@@ -1177,12 +1179,13 @@
             <h2 id="chapter-title">章節選擇</h2>
             <button type="button" class="modal-close" data-close-chapter aria-label="關閉">×</button>
           </div>
-          <div class="setting-row">
+          <div class="setting-row kinds-row">
             <span>學習類型</span>
             <div class="segmented" id="chapter-type">
               <button type="button" data-chapter-type="single" class="${legacyType === "single" ? "active" : ""}">學習單字</button>
               <button type="button" data-chapter-type="vocab" class="${legacyType === "vocab" ? "active" : ""}">學習詞彙</button>
               <button type="button" data-chapter-type="sentences" class="${legacyType === "sentences" ? "active" : ""}">學習句子</button>
+              <button type="button" data-chapter-type="wrong" class="${legacyType === "wrong" ? "active" : ""}">錯詞本</button>
             </div>
           </div>
           <div class="setting-row">
@@ -1232,13 +1235,13 @@
         const draft = state.chapterDraft;
         draft.legacyType = button.dataset.chapterType;
         const pool = BOOKS.filter((book) =>
-          book.type === "wrong"
-            ? false
-            : draft.legacyType === "vocab"
-              ? book.type === "vocab"
+          draft.legacyType === "vocab"
+            ? book.type === "vocab"
+            : draft.legacyType === "wrong"
+              ? book.type === "wrong"
               : draft.legacyType === "single"
                 ? book.type === "single"
-                : book.type !== "vocab" && book.type !== "single"
+                : book.type !== "vocab" && book.type !== "wrong" && book.type !== "single"
         );
         if (!pool.some((book) => book.id === draft.bookId)) {
           draft.bookId = pool[0].id;
@@ -1485,7 +1488,6 @@
       ${headerHtml("")}
       <main class="start">
         <h1>粵拼打字練習</h1>
-        <p class="subtitle">睇住句子逐字打粵拼，唔使打聲調。</p>
         <button id="start-btn" class="btn-primary" type="button">開始練習</button>
         <button id="report-btn" class="btn-ghost" type="button">學習報告</button>
       </main>
