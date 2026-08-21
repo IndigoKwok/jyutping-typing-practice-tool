@@ -570,6 +570,7 @@ button {
 .record-row .type {
   color: var(--bad);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .record-row .analysis {
@@ -769,18 +770,37 @@ button {
     min-width: 44px;
   }
 
+  .record-head,
+  .record-row {
+    grid-template-columns: 40px repeat(3, 1fr);
+    column-gap: 6px;
+  }
+
   .record-head {
-    display: none;
+    padding: 6px 2px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .record-head span:nth-child(5) {
+    grid-column: 2 / -1;
   }
 
   .record-row {
-    grid-template-columns: 44px 1fr 1fr;
-    row-gap: 6px;
+    row-gap: 4px;
     padding: 12px 2px;
   }
 
+  .record-row .char {
+    grid-row: span 2;
+  }
+
+  .record-row .type {
+    font-size: 12px;
+  }
+
   .record-row .analysis {
-    grid-column: 1 / -1;
+    grid-column: 2 / -1;
   }
 }
 
