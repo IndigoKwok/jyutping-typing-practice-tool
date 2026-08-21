@@ -1560,3 +1560,41 @@ select:focus-visible {
 .report h1 {
   font-weight: 600;
 }
+@media (max-width: 560px) {
+  .topbar {
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+
+  .brand {
+    font-size: 14px;
+    white-space: nowrap;
+  }
+
+  .topbar-note {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .topbar-actions {
+    gap: 2px;
+    flex: 0 0 auto;
+  }
+
+  .topbar-actions .text-btn {
+    min-height: 34px;
+    padding: 0 8px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .topbar-actions .icon-btn {
+    width: 34px;
+    height: 34px;
+  }
+}
