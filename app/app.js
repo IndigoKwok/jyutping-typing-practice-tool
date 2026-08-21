@@ -1766,11 +1766,7 @@
     if (!pickerMode()) return "";
     const pick = state.pick;
     if (!pick.initial && !pick.nucleus && !pick.coda) return "";
-    const parts = [];
-    if (pick.initial) parts.push(pick.initial);
-    if (pick.nucleus) parts.push(pick.nucleus);
-    if (pick.coda) parts.push(pick.coda);
-    return parts.join(" + ") + (pick.nucleus ? ` = ${pick.initial}${pick.nucleus}${pick.coda}` : "");
+    return `${pick.initial}${pick.nucleus}${pick.coda}`;
   }
 
   function syncVkbState() {

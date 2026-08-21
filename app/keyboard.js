@@ -9,7 +9,6 @@
     ["z", "x", "c", "v", "b", "n", "m", { label: "⌫", key: "Backspace", wide: true }],
     [{ label: "確認", key: "Enter", wide: true }]
   ];
-  const INITIALS = ["b", "p", "m", "f", "d", "t", "n", "l", "g", "k", "ng", "h", "gw", "kw", "w", "z", "c", "s", "j"];
   const NUCLEI = ["aa", "a", "e", "i", "o", "u", "oe", "eo", "yu", "m", "ng"];
   const CODAS = ["i", "u", "m", "n", "ng", "p", "t", "k"];
 
@@ -50,27 +49,33 @@
     }
   }
 
-  function buildSection(label) {
+  function buildSection(label, rows) {
     const section = document.createElement("div");
     section.className = "vkb-section";
     const tag = document.createElement("span");
     tag.className = "vkb-section-label";
     tag.textContent = label;
-    const wrap = document.createElement("div");
-    wrap.className = "vkb-row-wrap";
+    const body = document.createElement("div");
+    body.className = "vkb-section-body";
+    rows.forEach((keys) => {
+      const wrap = document.createElement("div");
+      wrap.className = "vkb-row-wrap";
+      keys.forEach(([keyLabel, spec]) => wrap.appendChild(makeKey(keyLabel, spec)));
+      body.appendChild(wrap);
+    });
     section.appendChild(tag);
-    section.appendChild(wrap);
+    section.appendChild(body);
     keyboard.appendChild(section);
-    return wrap;
   }
 
   function buildPicker() {
-    const ini = buildSection("聲母");
-    INITIALS.forEach((value) => ini.appendChild(makeKey(value, { pick: "initial", cls: "vkb-pick" })));
-    const nuc = buildSection("韻腹");
-    NUCLEI.forEach((value) => nuc.appendChild(makeKey(value, { pick: "nucleus", cls: "vkb-pick" })));
-    const cod = buildSection("韻尾");
-    CODAS.forEach((value) => cod.appendChild(makeKey(value, { pick: "coda", cls: "vkb-pick" })));
+    const pickSpec = (kind) => (value) => [value, { pick: kind, cls: "vkb-pick" }];
+    buildSection("聲母", [
+      ["b", "p", "m", "f", "d", "t", "n", "l", "g", "k"].map(pickSpec("initial")),
+      ["ng", "h", "gw", "kw", "w", "z", "c", "s", "j"].map(pickSpec("initial"))
+    ]);
+    buildSection("韻腹", [NUCLEI.map(pickSpec("nucleus"))]);
+    buildSection("韻尾", [CODAS.map(pickSpec("coda"))]);
     const row = document.createElement("div");
     row.className = "vkb-row vkb-confirm-row";
     row.appendChild(makeKey("確認", { pick: "confirm", wide: true }));

@@ -1158,18 +1158,27 @@ body[data-screen="practice"][data-modal="none"] .vkb {
   white-space: nowrap;
 }
 
+.vkb-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+
 .vkb-row-wrap {
   display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
+  flex-wrap: nowrap;
+  gap: 4px;
 }
 
 .vkb-key.vkb-pick {
-  flex: 0 1 auto;
-  min-width: 40px;
-  height: 40px;
-  padding: 0 10px;
-  font-size: 15px;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 42px;
+  padding: 0 2px;
+  font-size: 14px;
+  letter-spacing: 0;
 }
 
 .vkb-key.on {
@@ -1192,23 +1201,23 @@ body[data-screen="practice"][data-modal="none"] .vkb {
   }
 
   body[data-screen="practice"][data-kb="picker"] .app {
-    padding-bottom: 420px;
+    padding-bottom: 330px;
   }
 }
 
 .vkb-key-wide[data-key="Enter"],
 .vkb-confirm-row .vkb-key-wide {
   font-weight: 700;
-  color: var(--accent);
-  border-color: var(--accent);
-  background: var(--panel);
+  color: var(--text);
+  border-color: var(--line);
+  background: var(--line);
 }
 
 .vkb-key-wide[data-key="Enter"].pressed,
 .vkb-key-wide[data-key="Enter"]:active,
 .vkb-confirm-row .vkb-key-wide.pressed,
 .vkb-confirm-row .vkb-key-wide:active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #ffffff;
+  background: var(--muted);
+  border-color: var(--muted);
+  color: var(--panel);
 }
