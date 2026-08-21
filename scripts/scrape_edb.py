@@ -20,7 +20,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
 BASE = "https://www.edbchinese.hk/lexlist_ch/"
-ROOT = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW = os.path.join(ROOT, "raw")
 UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -214,7 +214,7 @@ def stage_parse():
     phrases = sorted(phrase_set)
 
     def write_csv(name, header, rows):
-        with open(os.path.join(ROOT, name), "w", encoding="utf-8-sig", newline="") as fh:
+        with open(os.path.join(ROOT, "csv", name), "w", encoding="utf-8-sig", newline="") as fh:
             writer = csv.writer(fh)
             writer.writerow(header)
             writer.writerows(rows)
@@ -234,7 +234,7 @@ def stage_parse():
         f'  "多字熟語": {words_to_js([(w, "") for w in phrases])}\n'
         "};\n"
     )
-    with open(os.path.join(ROOT, "edb-vocab.js"), "w", encoding="utf-8") as fh:
+    with open(os.path.join(ROOT, "data", "edb-vocab.js"), "w", encoding="utf-8") as fh:
         fh.write(js)
     print("outputs written", flush=True)
 

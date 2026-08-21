@@ -10,7 +10,7 @@ const OVERRIDES = {
   "T恤衫": "ti1 seot1 saam1",
 };
 
-const words = fs.readFileSync("edb_unmatched.txt", "utf8").trim().split(/\r?\n/).filter(Boolean);
+const words = fs.readFileSync("csv/edb_unmatched.txt", "utf8").trim().split(/\r?\n/).filter(Boolean);
 const isCjk = c => /[㐀-鿿豈-﫿]/.test(c);
 const cleanTok = t => t.replace(/[^a-zA-Z0-9]/g, "");
 const isJp = t => /^[a-z]+[1-6]$/.test(t);
@@ -29,7 +29,7 @@ for (const w of words) {
   }
   rows.push([w, jp]);
 }
-fs.writeFileSync("edb_jyutping_extra.csv",
+fs.writeFileSync("csv/edb_jyutping_extra.csv",
   "﻿word,jyutping\n" + rows.map(r => r.join(",")).join("\n") + "\n");
 console.log("written " + rows.length + " rows");
 if (warn.length) console.log("WARN: " + warn.join(" | "));

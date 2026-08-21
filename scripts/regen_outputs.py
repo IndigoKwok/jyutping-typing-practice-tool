@@ -9,7 +9,7 @@ import json
 import os
 import re
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW = os.path.join(ROOT, "raw")
 LOOKUP_FILES = [
     r"C:\Users\Indigo\Documents\Codex\2026-08-18\https-jyutping-io-practice-https-jyutping\wordlist\chinese_only_entries.json",
@@ -38,7 +38,7 @@ def load_lookup():
             if isinstance(readings, list) and readings:
                 table.setdefault(word, readings[0])
     print(f"lookup entries: {len(table)}", flush=True)
-    extra = os.path.join(ROOT, "edb_jyutping_extra.csv")
+    extra = os.path.join(ROOT, "csv", "edb_jyutping_extra.csv")
     if os.path.exists(extra):
         with open(extra, encoding="utf-8-sig") as fh:
             for row in csv.reader(fh):
@@ -206,7 +206,7 @@ def main():
                  key=lambda x: (len(x[0]), x[0]))
 
     def write_csv(name, header, rows):
-        with open(os.path.join(ROOT, name), "w", encoding="utf-8-sig", newline="") as fh:
+        with open(os.path.join(ROOT, "csv", name), "w", encoding="utf-8-sig", newline="") as fh:
             csv.writer(fh).writerows([header] + rows)
 
     write_csv("edb_ks1_words.csv", ["word", "jyutping"], ks1)
@@ -245,9 +245,9 @@ def main():
         unmatched_all.extend(unmatched)
     chars_empty += sum(1 for w, jp in ks1 + ks2 if not make_chars(w, jp))
     js_parts.append("};\n")
-    with open(os.path.join(ROOT, "edb-vocab.js"), "w", encoding="utf-8") as fh:
+    with open(os.path.join(ROOT, "data", "edb-vocab.js"), "w", encoding="utf-8") as fh:
         fh.write("\n".join(js_parts))
-    with open(os.path.join(ROOT, "edb_unmatched.txt"), "w", encoding="utf-8") as fh:
+    with open(os.path.join(ROOT, "csv", "edb_unmatched.txt"), "w", encoding="utf-8") as fh:
         fh.write("\n".join(unmatched_all) + ("\n" if unmatched_all else ""))
     report.append(f"lookup 後仍無粵拼: {len(unmatched_all)} -> edb_unmatched.txt")
     report.append(f"chars 為空的條目: {chars_empty}")
