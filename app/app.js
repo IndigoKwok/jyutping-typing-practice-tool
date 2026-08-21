@@ -380,7 +380,7 @@
   }
 
   // ===== 雲端同步 (GitHub OAuth + 私有 Gist) =====
-  const SYNC_WORKER_BASE = ""; // TODO: Worker 部署後填入, 例: "https://jyutping-sync.xxx.workers.dev"
+  const SYNC_WORKER_BASE = "https://jyutping-sync.indigorhine52.workers.dev";
   const SYNC_LS_KEY = "jyutping-sync-v1";
   const SYNC_GIST_FILE = "jyutping-stats.json";
   const SYNC_GIST_DESC = "jyutping-typing-practice stats";
