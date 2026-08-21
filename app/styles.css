@@ -1621,3 +1621,18 @@ select:focus-visible {
   font-size: 12px;
   white-space: nowrap;
 }
+.start {
+  min-height: calc(100vh - 150px);
+  min-height: calc(100dvh - 150px);
+  justify-content: center;
+  gap: 12px;
+  padding: 0 0 6vh;
+}
+
+.start .btn-primary {
+  margin-top: 28px;
+}
+
+#report-btn {
+  margin-top: 0;
+}
