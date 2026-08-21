@@ -66,13 +66,22 @@
       name: "香港小學學習字詞表",
       type: "vocab",
       chapters: [
-        { key: "小學-KS1", label: "KS1" },
-        { key: "小學-KS2", label: "KS2" },
+        { key: "小學-KS1", label: "KS1", filter: "words" },
+        { key: "小學-KS2", label: "KS2", filter: "words" },
         { key: "小學-四字詞語", label: "四字詞語" },
         { key: "小學-多字熟語", label: "多字熟語" },
         { key: "小學-文言詞語", label: "文言詞語" },
         { key: "小學-專名術語", label: "專名術語" },
-        { key: "小學-音譯外來詞語", label: "音譯外來詞語" },
+        { key: "小學-音譯外來詞語", label: "音譯外來詞語" }
+      ]
+    },
+    {
+      id: "edb-singles",
+      name: "香港小學學習字詞表",
+      type: "single",
+      chapters: [
+        { key: "單字-KS1", label: "KS1 單字", source: "小學-KS1", filter: "single" },
+        { key: "單字-KS2", label: "KS2 單字", source: "小學-KS2", filter: "single" },
         { key: "小學-人名地名用字", label: "人名地名用字" }
       ]
     },
@@ -119,7 +128,7 @@
   function locateChapter(legacyType, chapterKey) {
     for (const book of BOOKS) {
       if (book.type === "wrong") continue;
-      if (legacyType === "vocab" && book.type !== "vocab") continue;
+      if (legacyType === "vocab" && book.type !== "vocab" && book.type !== "single") continue;
       const chapter = book.chapters.find((item) => item.key === chapterKey);
       if (chapter) return { book, chapter };
     }
@@ -1121,9 +1130,14 @@
   function chapterModalHtml() {
     const draft = state.chapterDraft || { bookId: settings.bookId, chapter: settings.chapter };
     const fallbackBook = findBook(settings.bookId) || BOOKS[0];
-    const legacyType = draft.legacyType || (fallbackBook.type === "vocab" ? "vocab" : "sentences");
+    const legacyType = draft.legacyType ||
+      (fallbackBook.type === "vocab" || fallbackBook.type === "wrong" ? "vocab" : fallbackBook.type === "single" ? "single" : "sentences");
     const pool = BOOKS.filter((item) =>
-      legacyType === "vocab" ? item.type === "vocab" || item.type === "wrong" : item.type !== "vocab" && item.type !== "wrong"
+      legacyType === "vocab"
+        ? item.type === "vocab" || item.type === "wrong"
+        : legacyType === "single"
+          ? item.type === "single"
+          : item.type !== "vocab" && item.type !== "wrong" && item.type !== "single"
     );
     const book = (draft.bookId && pool.find((item) => item.id === draft.bookId)) || pool[0];
     const chapters = book.type === "wrong" ? draftWrongChapters() : book.chapters;
@@ -1148,6 +1162,7 @@
             <div class="segmented" id="chapter-type">
               <button type="button" data-chapter-type="sentences" class="${legacyType === "sentences" ? "active" : ""}">學習句子</button>
               <button type="button" data-chapter-type="vocab" class="${legacyType === "vocab" ? "active" : ""}">學習詞彙</button>
+              <button type="button" data-chapter-type="single" class="${legacyType === "single" ? "active" : ""}">學習單字</button>
             </div>
           </div>
           <div class="setting-row">
@@ -1197,7 +1212,13 @@
         const draft = state.chapterDraft;
         draft.legacyType = button.dataset.chapterType;
         const pool = BOOKS.filter((book) =>
-          book.type === "wrong" ? false : draft.legacyType === "vocab" ? book.type === "vocab" : book.type !== "vocab"
+          book.type === "wrong"
+            ? false
+            : draft.legacyType === "vocab"
+              ? book.type === "vocab"
+              : draft.legacyType === "single"
+                ? book.type === "single"
+                : book.type !== "vocab" && book.type !== "single"
         );
         if (!pool.some((book) => book.id === draft.bookId)) {
           draft.bookId = pool[0].id;
@@ -1316,16 +1337,23 @@
         .filter(Boolean)
         .map((item) => ({ text: item.word, chars: item.chars, word: item.word }));
     }
-    if (book.type === "vocab") {
+    if (book.type === "vocab" || book.type === "single") {
+      const sourceKey = chapter.source || chapter.key;
       const vocabChapter =
-        FAANZYUN_VOCAB[chapter.key] ||
-        (typeof EDB_VOCAB !== "undefined" ? EDB_VOCAB[chapter.key] : null) ||
+        FAANZYUN_VOCAB[sourceKey] ||
+        (typeof EDB_VOCAB !== "undefined" ? EDB_VOCAB[sourceKey] : null) ||
         [];
-      return vocabChapter.map((item) => ({
-        text: item.word,
-        chars: item.chars,
-        word: item.word
-      }));
+      return vocabChapter
+        .filter((item) => {
+          if (chapter.filter === "words") return [...item.word].length > 1;
+          if (chapter.filter === "single") return [...item.word].length === 1;
+          return true;
+        })
+        .map((item) => ({
+          text: item.word,
+          chars: item.chars,
+          word: item.word
+        }));
     }
     if (book.type === "sentences") {
       const bank = POLYU_SENTENCES[chapter.key] || [];
@@ -1385,7 +1413,7 @@
     const bank = buildSessionBank();
     const ref = currentChapterRef();
     const infinite = settings.sentenceCount === "inf" || ref.book.type === "wrong";
-    const weighted = ref.book.type === "vocab" || ref.book.type === "wrong";
+    const weighted = ref.book.type === "vocab" || ref.book.type === "single" || ref.book.type === "wrong";
     state.sessionInfinite = infinite;
     if (!bank.length) {
       state.screen = "start";
