@@ -9,10 +9,18 @@
 
 const TOKEN_URL = "https://github.com/login/oauth/access_token";
 
+// 前端喺 GitHub Pages 跨域 fetch 本 worker,冇 CORS header 會被瀏覽器擋 (fetch 報 Failed to fetch)
+const CORS_HEADERS = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-methods": "GET, POST, OPTIONS",
+  "access-control-allow-headers": "content-type",
+  "access-control-max-age": "86400"
+};
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8" }
+    headers: { "content-type": "application/json; charset=utf-8", ...CORS_HEADERS }
   });
 }
 
@@ -31,6 +39,10 @@ function isAllowedReturn(raw, allowedPrefixes) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+
+    if (request.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: CORS_HEADERS });
+    }
 
     if (url.pathname === "/health") {
       return json({ ok: true });
