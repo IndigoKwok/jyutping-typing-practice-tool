@@ -1122,3 +1122,26 @@ body[data-screen="practice"][data-modal="none"] .vkb {
   color: #a53a3a;
   border-color: #a53a3a;
 }
+
+.sync-area {
+  flex: 1;
+}
+
+.sync-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.sync-note,
+.sync-user {
+  color: var(--muted, #888);
+  font-size: 0.9rem;
+}
+
+.sync-status {
+  width: 100%;
+  color: var(--muted, #888);
+  font-size: 0.85rem;
+}

@@ -236,10 +236,11 @@
 
   let stats = loadStats();
 
-  function saveStats() {
+  function saveStats(skipSync) {
     try {
       localStorage.setItem(STATS_KEY, JSON.stringify(stats));
     } catch (e) {}
+    if (!skipSync) scheduleSyncPush();
   }
 
   function clearStats() {
@@ -376,6 +377,304 @@
     const item = WORD_MAP.get(word);
     if (!item) return "";
     return item.chars.map((c) => c.jp).filter(Boolean).join(" ");
+  }
+
+  // ===== 雲端同步 (GitHub OAuth + 私有 Gist) =====
+  const SYNC_WORKER_BASE = ""; // TODO: Worker 部署後填入, 例: "https://jyutping-sync.xxx.workers.dev"
+  const SYNC_LS_KEY = "jyutping-sync-v1";
+  const SYNC_GIST_FILE = "jyutping-stats.json";
+  const SYNC_GIST_DESC = "jyutping-typing-practice stats";
+
+  let syncState = (() => {
+    try {
+      return JSON.parse(localStorage.getItem(SYNC_LS_KEY)) || {};
+    } catch (e) {
+      return {};
+    }
+  })();
+  let syncClientId = "";
+  let syncStatus = "";
+  let syncBusy = false;
+  let syncPushTimer = null;
+
+  function saveSyncState() {
+    try {
+      localStorage.setItem(SYNC_LS_KEY, JSON.stringify(syncState));
+    } catch (e) {}
+  }
+
+  function statsIsEmpty() {
+    const buckets = stats.phonemes || {};
+    const phonemeCount = ["initials", "finals", "codas"]
+      .reduce((sum, key) => sum + Object.keys(buckets[key] || {}).length, 0);
+    return phonemeCount === 0 && Object.keys(stats.words || {}).length === 0;
+  }
+
+  function syncHeaders() {
+    return {
+      authorization: "Bearer " + syncState.token,
+      accept: "application/vnd.github+json"
+    };
+  }
+
+  async function syncFetch(url, options) {
+    const resp = await fetch(url, options);
+    if (resp.status === 401) {
+      syncState = {};
+      saveSyncState();
+      throw new Error("登入已過期,請重新登入 GitHub。");
+    }
+    if (!resp.ok) {
+      throw new Error("GitHub API " + resp.status);
+    }
+    return resp.json();
+  }
+
+  async function syncLogin() {
+    if (!SYNC_WORKER_BASE || syncBusy) return;
+    syncBusy = true;
+    syncStatus = "正在準備登入…";
+    renderSyncArea();
+    try {
+      if (!syncClientId) {
+        const cfg = await (await fetch(SYNC_WORKER_BASE + "/api/config")).json();
+        syncClientId = cfg.clientId || "";
+      }
+      if (!syncClientId) throw new Error("Worker 未設定 GITHUB_CLIENT_ID");
+      const returnTo = location.origin + location.pathname;
+      const authorize =
+        "https://github.com/login/oauth/authorize" +
+        "?client_id=" + encodeURIComponent(syncClientId) +
+        "&redirect_uri=" + encodeURIComponent(SYNC_WORKER_BASE + "/auth/callback") +
+        "&scope=gist" +
+        "&state=" + encodeURIComponent(returnTo);
+      location.href = authorize;
+    } catch (e) {
+      syncStatus = "登入失敗：" + e.message;
+      syncBusy = false;
+      renderSyncArea();
+    }
+  }
+
+  function captureSyncToken() {
+    const hash = location.hash || "";
+    const match = hash.match(/[#&]sync_token=([^&]+)/);
+    if (!match) return false;
+    syncState.token = decodeURIComponent(match[1]);
+    saveSyncState();
+    history.replaceState(null, "", location.pathname + location.search);
+    return true;
+  }
+
+  async function findOrCreateGist() {
+    if (syncState.gistId) return syncState.gistId;
+    const gists = await syncFetch("https://api.github.com/gists?per_page=100", { headers: syncHeaders() });
+    const found = gists.find((g) => g.files && g.files[SYNC_GIST_FILE]);
+    if (found) {
+      syncState.gistId = found.id;
+      saveSyncState();
+      return found.id;
+    }
+    const created = await syncFetch("https://api.github.com/gists", {
+      method: "POST",
+      headers: Object.assign({ "content-type": "application/json" }, syncHeaders()),
+      body: JSON.stringify({
+        description: SYNC_GIST_DESC,
+        public: false,
+        files: { [SYNC_GIST_FILE]: { content: "{}" } }
+      })
+    });
+    syncState.gistId = created.id;
+    saveSyncState();
+    return created.id;
+  }
+
+  async function downloadRemoteStats() {
+    const gist = await syncFetch("https://api.github.com/gists/" + syncState.gistId, { headers: syncHeaders() });
+    const file = gist.files && gist.files[SYNC_GIST_FILE];
+    if (!file) return null;
+    let content = file.content;
+    if (file.truncated && file.raw_url) {
+      content = await (await fetch(file.raw_url, { headers: syncHeaders() })).text();
+    }
+    try {
+      const parsed = JSON.parse(content);
+      return parsed && parsed.data ? parsed.data : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function uploadStats() {
+    const payload = JSON.stringify({
+      v: 1,
+      updatedAt: new Date().toISOString(),
+      data: stats
+    });
+    await syncFetch("https://api.github.com/gists/" + syncState.gistId, {
+      method: "PATCH",
+      headers: Object.assign({ "content-type": "application/json" }, syncHeaders()),
+      body: JSON.stringify({ files: { [SYNC_GIST_FILE]: { content: payload } } })
+    });
+    syncState.lastPush = Date.now();
+    saveSyncState();
+  }
+
+  function applyRemoteStats(remote) {
+    if (!remote || typeof remote !== "object") return;
+    stats = {
+      phonemes: {
+        initials: (remote.phonemes && remote.phonemes.initials) || {},
+        finals: (remote.phonemes && remote.phonemes.finals) || {},
+        codas: (remote.phonemes && remote.phonemes.codas) || {}
+      },
+      words: remote.words && typeof remote.words === "object" ? remote.words : {}
+    };
+    saveStats(true);
+  }
+
+  async function syncDownload() {
+    const remote = await downloadRemoteStats();
+    if (!remote) {
+      syncStatus = "雲端仲未有記錄,已用本機記錄上傳。";
+      await uploadStats();
+      return;
+    }
+    if (statsIsEmpty()) {
+      applyRemoteStats(remote);
+      syncStatus = "已從雲端拉取學習記錄。";
+      return;
+    }
+    const useRemote = window.confirm("雲端同本機都有學習記錄。\n\n確定 = 用雲端覆蓋本機\n取消 = 再揀");
+    if (useRemote) {
+      applyRemoteStats(remote);
+      syncStatus = "已用雲端記錄覆蓋本機。";
+      return;
+    }
+    const useLocal = window.confirm("要用本機記錄覆蓋雲端？\n\n確定 = 用本機覆蓋雲端\n取消 = 暫時唔郁");
+    if (useLocal) {
+      await uploadStats();
+      syncStatus = "已用本機記錄覆蓋雲端。";
+    } else {
+      syncStatus = "未同步,兩邊記錄保持原狀。";
+    }
+  }
+
+  async function syncAfterLogin() {
+    if (!syncState.token || syncBusy) return;
+    syncBusy = true;
+    syncStatus = "同步緊…";
+    renderSyncArea();
+    try {
+      const user = await syncFetch("https://api.github.com/user", { headers: syncHeaders() });
+      syncState.login = user.login || "";
+      saveSyncState();
+      await findOrCreateGist();
+      await syncDownload();
+    } catch (e) {
+      syncStatus = "同步失敗：" + e.message;
+    }
+    syncBusy = false;
+    renderSyncArea();
+  }
+
+  function scheduleSyncPush() {
+    if (!syncState.token || !syncState.gistId) return;
+    if (syncPushTimer) clearTimeout(syncPushTimer);
+    syncPushTimer = setTimeout(async () => {
+      try {
+        await uploadStats();
+        syncStatus = "已同步到雲端。";
+      } catch (e) {
+        syncStatus = "上傳失敗：" + e.message;
+      }
+      renderSyncArea();
+    }, 3000);
+  }
+
+  function syncLogout() {
+    syncState = {};
+    saveSyncState();
+    syncStatus = "已登出。";
+    renderSyncArea();
+  }
+
+  function syncAreaHtml() {
+    if (!SYNC_WORKER_BASE) {
+      return `<span class="sync-note">未設定同步伺服器</span>`;
+    }
+    const statusLine = syncStatus ? `<div class="sync-status">${escapeHtml(syncStatus)}</div>` : "";
+    if (!syncState.token) {
+      return `
+        <div class="sync-actions">
+          <button type="button" class="btn-ghost" id="sync-login" ${syncBusy ? "disabled" : ""}>用 GitHub 登入</button>
+          ${statusLine}
+        </div>
+      `;
+    }
+    return `
+      <div class="sync-actions">
+        <span class="sync-user">@${escapeHtml(syncState.login || "…")}</span>
+        <button type="button" class="btn-ghost" id="sync-push" ${syncBusy ? "disabled" : ""}>立即上傳</button>
+        <button type="button" class="btn-ghost" id="sync-pull" ${syncBusy ? "disabled" : ""}>重新拉取</button>
+        <button type="button" class="btn-ghost danger" id="sync-logout">登出</button>
+        ${statusLine}
+      </div>
+    `;
+  }
+
+  function renderSyncArea() {
+    const area = document.getElementById("sync-area");
+    if (!area) return;
+    area.innerHTML = syncAreaHtml();
+    bindSyncArea();
+  }
+
+  function bindSyncArea() {
+    const login = document.getElementById("sync-login");
+    if (login) login.addEventListener("click", syncLogin);
+    const push = document.getElementById("sync-push");
+    if (push) {
+      push.addEventListener("click", async () => {
+        syncBusy = true;
+        renderSyncArea();
+        try {
+          await uploadStats();
+          syncStatus = "已上傳到雲端。";
+        } catch (e) {
+          syncStatus = "上傳失敗：" + e.message;
+        }
+        syncBusy = false;
+        renderSyncArea();
+      });
+    }
+    const pull = document.getElementById("sync-pull");
+    if (pull) {
+      pull.addEventListener("click", async () => {
+        syncBusy = true;
+        renderSyncArea();
+        try {
+          await syncDownload();
+        } catch (e) {
+          syncStatus = "拉取失敗：" + e.message;
+        }
+        syncBusy = false;
+        renderSyncArea();
+      });
+    }
+    const logout = document.getElementById("sync-logout");
+    if (logout) logout.addEventListener("click", syncLogout);
+  }
+
+  async function initSync() {
+    const justLoggedIn = captureSyncToken();
+    if (justLoggedIn) {
+      syncStatus = "登入成功,";
+    }
+    renderSyncArea();
+    if (justLoggedIn) {
+      await syncAfterLogin();
+    }
   }
 
   function resolvedTheme() {
@@ -809,6 +1108,10 @@
           <div class="setting-row">
             <span>學習進度</span>
             <button type="button" class="btn-ghost danger" id="reset-stats">清空本地學習進度</button>
+          </div>
+          <div class="setting-row">
+            <span>雲端同步</span>
+            <div class="sync-area" id="sync-area"></div>
           </div>
         </div>
       </div>
@@ -1500,6 +1803,7 @@
       wrapper.innerHTML = settingsHtml();
       app.appendChild(wrapper.firstElementChild);
       bindSettings();
+      renderSyncArea();
     } else if (state.chapterOpen) {
       const wrapper = document.createElement("div");
       wrapper.innerHTML = chapterModalHtml();
@@ -1646,6 +1950,7 @@
   applyTheme();
   resetPhonemeWeights();
   window.addEventListener("keydown", handleGlobalKeydown);
+  initSync();
   render();
 })();
 

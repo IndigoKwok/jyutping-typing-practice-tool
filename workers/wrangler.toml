@@ -1,0 +1,14 @@
+name = "jyutping-sync"
+main = "jyutping-sync.js"
+compatibility_date = "2025-01-01"
+
+[vars]
+# OAuth App 的 Client ID（公開信息，部署前填上）
+GITHUB_CLIENT_ID = "填上你的_CLIENT_ID"
+# 回跳白名單：只有這些前綴的頁面能收到 token
+ALLOWED_RETURN_PREFIXES = "https://indigokwok.github.io/,http://127.0.0.1:8317/,http://localhost:8317/"
+# state 不合法時的後備回跳
+DEFAULT_RETURN = "https://indigokwok.github.io/jyutping-typing-practice-tool/"
+
+# client_secret 用命令設置（不要寫進此文件）:
+#   npx wrangler secret put GITHUB_CLIENT_SECRET
