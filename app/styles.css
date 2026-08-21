@@ -958,3 +958,167 @@ body[data-screen="practice"][data-modal="none"] .vkb {
     min-height: 44px;
   }
 }
+
+.report {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+.report h1 {
+  margin: 0 0 16px;
+}
+
+.report-card {
+  background: var(--panel, #fff);
+  border: 1px solid var(--line, #e5e5e5);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 18px;
+}
+
+.report-card h2 {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+}
+
+.report-empty {
+  color: var(--muted, #888);
+  margin: 8px 0;
+}
+
+.weak-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.weak-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.weak-cell {
+  min-width: 64px;
+  padding: 4px 10px;
+  border: 1px solid var(--line, #ddd);
+  border-radius: 8px;
+  background: var(--cell-bg, #f6f6f6);
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.weak-cell:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.weak-bar {
+  flex: 1;
+  height: 10px;
+  background: var(--cell-bg, #eee);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.weak-fill {
+  height: 100%;
+  background: hsl(4, 60%, 55%);
+  border-radius: 999px;
+}
+
+.weak-meta {
+  min-width: 128px;
+  text-align: right;
+  color: var(--muted, #888);
+  font-size: 0.85rem;
+}
+
+.wrong-group {
+  border: 1px solid var(--line, #e5e5e5);
+  border-radius: 10px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.wrong-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.wrong-head:hover {
+  background: var(--cell-bg, #f6f6f6);
+}
+
+.wrong-head-count {
+  color: var(--muted, #888);
+  font-size: 0.85rem;
+}
+
+.wrong-list {
+  border-top: 1px solid var(--line, #e5e5e5);
+  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wrong-item {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.wrong-word {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1.05rem;
+  padding: 2px 0;
+}
+
+.wrong-word:hover {
+  text-decoration: underline;
+}
+
+.wrong-jp {
+  color: var(--muted, #888);
+  font-size: 0.9rem;
+  flex: 1;
+}
+
+.wrong-count {
+  color: var(--muted, #888);
+  font-size: 0.85rem;
+}
+
+#wrongbook-start-btn {
+  margin-top: 12px;
+}
+
+#wrongbook-start-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+#report-back-btn {
+  display: block;
+  margin: 8px auto 0;
+}
+
+#report-btn {
+  margin-top: 10px;
+}
+
+.btn-ghost.danger {
+  color: #a53a3a;
+  border-color: #a53a3a;
+}

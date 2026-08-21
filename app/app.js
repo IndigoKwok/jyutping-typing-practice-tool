@@ -3,6 +3,7 @@
 
   const SESSION_OPTIONS = [5, 10, 15, 20];
   const SETTINGS_KEY = "jyutping-practice-settings";
+  const STATS_KEY = "jyutping-practice-stats-v1";
   const MAJOR_TAGS = ["歌曲", "廣告", "電影", "流行文化", "電視劇"];
   const INITIALS = ["b", "p", "m", "f", "d", "t", "n", "l", "g", "k", "ng", "h", "gw", "kw", "w", "z", "c", "s", "j"];
   const CODA_LIST = ["i", "u", "m", "n", "ng", "p", "t", "k"];
@@ -26,6 +27,120 @@
   );
   const SENTENCE_CATS = Object.keys(POLYU_SENTENCES);
 
+  const BOOKS = [
+    {
+      id: "faanzyun-vocab",
+      name: "翻轉粵語教室—詞彙篇",
+      type: "vocab",
+      chapters: ["問候", "稱謂", "日期與時間", "數字與貨幣", "量詞", "提問", "交通", "方位", "飲食", "購物"]
+        .map((key) => ({ key, label: key }))
+    },
+    {
+      id: "faanzyun-sentences",
+      name: "翻轉粵語教室—句子篇",
+      type: "sentences",
+      chapters: ["提問", "交通", "方位", "飲食", "購物"]
+        .map((key) => ({ key, label: key }))
+    },
+    {
+      id: "laan-jam",
+      name: "懶音診療室",
+      type: "vocab",
+      chapters: [
+        { key: "聲母混讀：n/l", label: "聲母混讀：n/l" },
+        { key: "聲母混讀：ng/零聲母", label: "聲母混讀：ng/零聲母" },
+        { key: "聲母混讀：gw/kw 與 g/k", label: "聲母混讀：gw/kw 與 g/k" },
+        { key: "韻母混讀：n/ng 韻尾", label: "韻母混讀：n/ng" },
+        { key: "韻母混讀：t/k 韻尾", label: "韻母混讀：t/k" }
+      ]
+    },
+    {
+      id: "learnduck",
+      name: "LearnDuck 粵拼打字入門",
+      type: "vocab",
+      chapters: ["家庭", "學校", "運動", "香港", "買東西", "醫院", "工作", "文化節日", "安全", "食物", "大自然", "數學", "社區生活", "政府部門", "權利", "認識自己", "口語用字"]
+        .map((key) => ({ key, label: key }))
+    },
+    {
+      id: "edb",
+      name: "香港小學學習字詞表",
+      type: "vocab",
+      chapters: [
+        { key: "小學-KS1", label: "KS1" },
+        { key: "小學-KS2", label: "KS2" },
+        { key: "小學-四字詞語", label: "四字詞語" },
+        { key: "小學-多字熟語", label: "多字熟語" },
+        { key: "小學-文言詞語", label: "文言詞語" },
+        { key: "小學-專名術語", label: "專名術語" },
+        { key: "小學-音譯外來詞語", label: "音譯外來詞語" },
+        { key: "小學-人名地名用字", label: "人名地名用字" }
+      ]
+    },
+    {
+      id: "pop-culture",
+      name: "流行文化",
+      type: "tags",
+      chapters: ["歌曲", "廣告", "電影", "流行文化", "電視劇"]
+        .map((key) => ({ key, label: key }))
+    },
+    {
+      id: "wrong-book",
+      name: "錯詞本",
+      type: "wrong",
+      chapters: []
+    }
+  ];
+
+  const WORD_MAP = (() => {
+    const map = new Map();
+    const addAll = (vocab) => {
+      Object.keys(vocab).forEach((cat) => {
+        vocab[cat].forEach((item) => {
+          if (!map.has(item.word)) map.set(item.word, item);
+        });
+      });
+    };
+    addAll(FAANZYUN_VOCAB);
+    if (typeof EDB_VOCAB !== "undefined") addAll(EDB_VOCAB);
+    return map;
+  })();
+
+  function findBook(bookId) {
+    return BOOKS.find((book) => book.id === bookId) || null;
+  }
+
+  function findChapterRef(bookId, chapterKey) {
+    const book = findBook(bookId);
+    if (!book) return null;
+    const chapter = book.chapters.find((item) => item.key === chapterKey);
+    return chapter ? { book, chapter } : null;
+  }
+
+  function locateChapter(legacyType, chapterKey) {
+    for (const book of BOOKS) {
+      if (book.type === "wrong") continue;
+      if (legacyType === "vocab" && book.type !== "vocab") continue;
+      const chapter = book.chapters.find((item) => item.key === chapterKey);
+      if (chapter) return { book, chapter };
+    }
+    return null;
+  }
+
+  function wrongBookChapters() {
+    return wrongBookGroups().map((group) => ({ key: group.label, label: group.label }));
+  }
+
+  function draftWrongChapters() {
+    return wrongBookChapters();
+  }
+
+  function draftChapterLabel(draft) {
+    if (!draft) return "";
+    if (draft.bookId === "wrong-book") return "錯詞本";
+    const ref = findChapterRef(draft.bookId, draft.chapter);
+    return ref ? ref.chapter.label : "";
+  }
+
   const app = document.getElementById("app");
   const state = {
     screen: "start",
@@ -47,12 +162,14 @@
   const phonemeWeights = { initials: [], finals: [], codas: [] };
 
   function defaultSettings() {
-    return { sentenceCount: 10, soundEnabled: true, theme: "light", chapterType: "sentences", chapter: "全部" };
-  }
-
-  function validChapter(type, chapter) {
-    if (type === "vocab") return VOCAB_CATS.includes(chapter);
-    return chapter === "全部" || SENTENCE_CATS.includes(chapter) || MAJOR_TAGS.includes(chapter);
+    return {
+      bookId: "faanzyun-vocab",
+      chapter: "問候",
+      sentenceCount: 10,
+      soundEnabled: true,
+      theme: "light",
+      wrongRemoveStreak: 3
+    };
   }
 
   function loadSettings() {
@@ -61,14 +178,28 @@
       const raw = localStorage.getItem(SETTINGS_KEY);
       if (!raw) return defaults;
       const parsed = JSON.parse(raw);
-      const chapterType = ["sentences", "vocab"].includes(parsed.chapterType) ? parsed.chapterType : defaults.chapterType;
-      const chapter = validChapter(chapterType, parsed.chapter) ? parsed.chapter : defaults.chapter;
+      let bookId = findBook(parsed.bookId) ? parsed.bookId : null;
+      let chapter = parsed.chapter;
+      if (!bookId || !findChapterRef(bookId, chapter)) {
+        const legacyType = parsed.chapterType === "vocab" ? "vocab" : "sentences";
+        const located = typeof chapter === "string" ? locateChapter(legacyType, chapter) : null;
+        if (located) {
+          bookId = located.book.id;
+          chapter = located.chapter.key;
+        } else {
+          bookId = defaults.bookId;
+          chapter = defaults.chapter;
+        }
+      }
       return {
-        sentenceCount: SESSION_OPTIONS.includes(parsed.sentenceCount) ? parsed.sentenceCount : defaults.sentenceCount,
+        bookId,
+        chapter,
+        sentenceCount: parsed.sentenceCount === "inf" || SESSION_OPTIONS.includes(parsed.sentenceCount)
+          ? parsed.sentenceCount
+          : defaults.sentenceCount,
         soundEnabled: typeof parsed.soundEnabled === "boolean" ? parsed.soundEnabled : defaults.soundEnabled,
         theme: ["light", "dark", "system"].includes(parsed.theme) ? parsed.theme : defaults.theme,
-        chapterType,
-        chapter
+        wrongRemoveStreak: [1, 3].includes(parsed.wrongRemoveStreak) ? parsed.wrongRemoveStreak : defaults.wrongRemoveStreak
       };
     } catch (e) {
       return defaults;
@@ -81,6 +212,170 @@
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     } catch (e) {}
+  }
+
+  function loadStats() {
+    const empty = { phonemes: { initials: {}, finals: {}, codas: {} }, words: {} };
+    try {
+      const raw = localStorage.getItem(STATS_KEY);
+      if (!raw) return empty;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return empty;
+      return {
+        phonemes: {
+          initials: parsed.phonemes && parsed.phonemes.initials || {},
+          finals: parsed.phonemes && parsed.phonemes.finals || {},
+          codas: parsed.phonemes && parsed.phonemes.codas || {}
+        },
+        words: parsed.words && typeof parsed.words === "object" ? parsed.words : {}
+      };
+    } catch (e) {
+      return empty;
+    }
+  }
+
+  let stats = loadStats();
+
+  function saveStats() {
+    try {
+      localStorage.setItem(STATS_KEY, JSON.stringify(stats));
+    } catch (e) {}
+  }
+
+  function clearStats() {
+    stats = { phonemes: { initials: {}, finals: {}, codas: {} }, words: {} };
+    try {
+      localStorage.removeItem(STATS_KEY);
+    } catch (e) {}
+  }
+
+  function tallyPhoneme(bucket, key, correct) {
+    if (!key) return;
+    const entry = stats.phonemes[bucket][key] || { r: 0, w: 0 };
+    if (correct) entry.r += 1;
+    else entry.w += 1;
+    stats.phonemes[bucket][key] = entry;
+  }
+
+  function recordCharStats(expectedRaw, typedRaw) {
+    const expected = parseSyllable(expectedRaw);
+    const actual = parseSyllable(typedRaw);
+    if (expected.initial) tallyPhoneme("initials", expected.initial, expected.initial === actual.initial);
+    else if (actual.initial) tallyPhoneme("initials", "零聲母", false);
+    if (expected.final) tallyPhoneme("finals", expected.final, expected.final === actual.final);
+    if (expected.coda) tallyPhoneme("codas", expected.coda, expected.coda === actual.coda);
+    saveStats();
+  }
+
+  function recordWordAttempt(word, correct, chapterLabel) {
+    if (!word) return;
+    const entry = stats.words[word] || { r: 0, w: 0, streak: 0, ch: "", at: 0 };
+    if (correct) {
+      entry.r += 1;
+      entry.streak += 1;
+    } else {
+      entry.w += 1;
+      entry.streak = 0;
+      entry.ch = chapterLabel;
+    }
+    entry.at = Date.now();
+    stats.words[word] = entry;
+    saveStats();
+  }
+
+  function currentChapterRef() {
+    if (settings.bookId === "wrong-book") {
+      const book = findBook("wrong-book");
+      const label = wrongBookGroups().length ? wrongBookGroups()[0].label : "錯詞本";
+      return { book, chapter: { key: label, label: "錯詞本" } };
+    }
+    return findChapterRef(settings.bookId, settings.chapter) ||
+      { book: findBook(defaultSettings().bookId), chapter: { key: defaultSettings().chapter, label: defaultSettings().chapter } };
+  }
+
+  function currentChapterLabel() {
+    const ref = currentChapterRef();
+    return ref.book.type === "wrong" ? "錯詞本" : ref.chapter.label;
+  }
+
+  function wordFinalsWeakness(item) {
+    const jps = (item.chars || []).map((c) => c.jp).filter(Boolean);
+    if (!jps.length) return 0.5;
+    let sum = 0;
+    jps.forEach((jp) => {
+      const final = parseSyllable(jp).final;
+      const entry = stats.phonemes.finals[final] || { r: 0, w: 0 };
+      sum += (entry.w + 1) / (entry.r + entry.w + 2);
+    });
+    return sum / jps.length;
+  }
+
+  function itemWeight(item) {
+    const unseen = stats.words[item.word || item.text] ? 1 : 3;
+    return unseen * (1 + 6 * wordFinalsWeakness(item));
+  }
+
+  function drawWeighted(pool, count) {
+    const picked = [];
+    const work = pool.slice();
+    while (picked.length < count && work.length) {
+      let total = 0;
+      const weights = work.map((item) => {
+        const w = itemWeight(item);
+        total += w;
+        return w;
+      });
+      let roll = Math.random() * total;
+      let index = 0;
+      while (index < weights.length - 1) {
+        roll -= weights[index];
+        if (roll <= 0) break;
+        index += 1;
+      }
+      picked.push(work.splice(index, 1)[0]);
+    }
+    return picked;
+  }
+
+  function wrongBookWords() {
+    return Object.keys(stats.words).filter((word) => {
+      const entry = stats.words[word];
+      return entry.w >= 1 && entry.streak < settings.wrongRemoveStreak;
+    });
+  }
+
+  function wrongBookGroups() {
+    const groups = new Map();
+    wrongBookWords().forEach((word) => {
+      const label = stats.words[word].ch || "其他";
+      if (!groups.has(label)) groups.set(label, []);
+      groups.get(label).push(word);
+    });
+    return [...groups.entries()]
+      .map(([label, words]) => ({
+        label,
+        words: words.sort((a, b) => (stats.words[b].at || 0) - (stats.words[a].at || 0))
+      }))
+      .sort((a, b) => b.words.length - a.words.length || a.label.localeCompare(b.label));
+  }
+
+  function weakFinals(limit) {
+    return Object.entries(stats.phonemes.finals)
+      .map(([final, entry]) => ({
+        final,
+        r: entry.r,
+        w: entry.w,
+        weak: (entry.w + 1) / (entry.r + entry.w + 2)
+      }))
+      .filter((entry) => entry.r + entry.w >= 3)
+      .sort((a, b) => b.weak - a.weak || b.w - a.w)
+      .slice(0, limit);
+  }
+
+  function wordJpDisplay(word) {
+    const item = WORD_MAP.get(word);
+    if (!item) return "";
+    return item.chars.map((c) => c.jp).filter(Boolean).join(" ");
   }
 
   function resolvedTheme() {
@@ -442,12 +737,13 @@
     `;
   }
 
-  function headerHtml(progressLabel) {
+  function headerHtml(progressLabel, showSettle) {
     return `
       <header class="topbar">
         <div class="brand"><span class="brand-mark">粵拼</span>打字練習</div>
         ${progressLabel ? `<div class="topbar-note">${progressLabel}</div>` : ""}
         <div class="topbar-actions">
+          ${showSettle ? `<button type="button" class="icon-btn text-btn" id="settle-btn">結算</button>` : ""}
           <button type="button" class="icon-btn text-btn" id="chapter-btn">章節</button>
           <button type="button" class="icon-btn" id="settings-btn" aria-label="設定" title="設定">${gearSvg()}</button>
         </div>
@@ -459,6 +755,10 @@
     const chapterButton = document.getElementById("chapter-btn");
     if (chapterButton) {
       chapterButton.addEventListener("click", openChapterModal);
+    }
+    const settleButton = document.getElementById("settle-btn");
+    if (settleButton) {
+      settleButton.addEventListener("click", settleSession);
     }
     const button = document.getElementById("settings-btn");
     if (button) {
@@ -472,7 +772,7 @@
   function settingsHtml() {
     const countOptions = SESSION_OPTIONS.map((n) =>
       `<option value="${n}" ${settings.sentenceCount === n ? "selected" : ""}>${n} 句</option>`
-    ).join("");
+    ).join("") + `<option value="inf" ${settings.sentenceCount === "inf" ? "selected" : ""}>無限（隨時結算）</option>`;
     const themes = [["light", "淺色"], ["dark", "深色"], ["system", "系統"]];
     const themeButtons = themes.map(([value, label]) =>
       `<button type="button" data-theme="${value}" class="${settings.theme === value ? "active" : ""}">${label}</button>`
@@ -499,20 +799,37 @@
             <span>主題</span>
             <div class="segmented" id="setting-theme">${themeButtons}</div>
           </div>
+          <div class="setting-row">
+            <span>錯詞移出</span>
+            <div class="segmented" id="setting-streak">
+              <button type="button" data-streak="1" class="${settings.wrongRemoveStreak === 1 ? "active" : ""}">連對 1 次</button>
+              <button type="button" data-streak="3" class="${settings.wrongRemoveStreak === 3 ? "active" : ""}">連對 3 次</button>
+            </div>
+          </div>
+          <div class="setting-row">
+            <span>學習進度</span>
+            <button type="button" class="btn-ghost danger" id="reset-stats">清空本地學習進度</button>
+          </div>
         </div>
       </div>
     `;
   }
 
   function chapterModalHtml() {
-    const draft = state.chapterDraft || { chapterType: settings.chapterType, chapter: settings.chapter };
-    const options = draft.chapterType === "vocab"
-      ? VOCAB_CATS.map((cat) => ({ value: cat, label: cat }))
-      : [
-          { value: "全部", label: "全部" },
-          ...SENTENCE_CATS.map((cat) => ({ value: cat, label: `句子：${cat}` })),
-          ...MAJOR_TAGS.map((tag) => ({ value: tag, label: `標籤：${tag}` }))
-        ];
+    const draft = state.chapterDraft || { bookId: settings.bookId, chapter: settings.chapter };
+    const fallbackBook = findBook(settings.bookId) || BOOKS[0];
+    const legacyType = draft.legacyType || (fallbackBook.type === "vocab" ? "vocab" : "sentences");
+    const pool = BOOKS.filter((item) =>
+      legacyType === "vocab" ? item.type === "vocab" || item.type === "wrong" : item.type !== "vocab" && item.type !== "wrong"
+    );
+    const book = (draft.bookId && pool.find((item) => item.id === draft.bookId)) || pool[0];
+    const chapters = book.type === "wrong" ? draftWrongChapters() : book.chapters;
+    draft.legacyType = legacyType;
+    draft.bookId = book.id;
+    const bookOptions = pool.map((item) =>
+      `<option value="${escapeHtml(item.id)}" ${item.id === book.id ? "selected" : ""}>${escapeHtml(item.name)}</option>`
+    ).join("");
+    const options = chapters.map((chapter) => ({ value: chapter.key, label: chapter.label }));
     const chapterSelect = options.map((option) =>
       `<option value="${escapeHtml(option.value)}" ${draft.chapter === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>`
     ).join("");
@@ -526,9 +843,13 @@
           <div class="setting-row">
             <span>學習類型</span>
             <div class="segmented" id="chapter-type">
-              <button type="button" data-chapter-type="sentences" class="${draft.chapterType === "sentences" ? "active" : ""}">學習句子</button>
-              <button type="button" data-chapter-type="vocab" class="${draft.chapterType === "vocab" ? "active" : ""}">學習詞彙</button>
+              <button type="button" data-chapter-type="sentences" class="${legacyType === "sentences" ? "active" : ""}">學習句子</button>
+              <button type="button" data-chapter-type="vocab" class="${legacyType === "vocab" ? "active" : ""}">學習詞彙</button>
             </div>
+          </div>
+          <div class="setting-row">
+            <label for="book-select">詞書</label>
+            <select id="book-select">${bookOptions}</select>
           </div>
           <div class="setting-row">
             <label for="chapter-select">章節</label>
@@ -544,7 +865,7 @@
   }
 
   function openChapterModal() {
-    state.chapterDraft = { chapterType: settings.chapterType, chapter: settings.chapter };
+    state.chapterDraft = { bookId: settings.bookId, chapter: settings.chapter };
     state.chapterOpen = true;
     render();
   }
@@ -571,20 +892,32 @@
     document.querySelectorAll("#chapter-type button").forEach((button) => {
       button.addEventListener("click", () => {
         const draft = state.chapterDraft;
-        draft.chapterType = button.dataset.chapterType;
-        const options = draft.chapterType === "vocab"
-          ? VOCAB_CATS.map((cat) => ({ value: cat, label: cat }))
-          : [
-              { value: "全部", label: "全部" },
-              ...SENTENCE_CATS.map((cat) => ({ value: cat, label: `句子：${cat}` })),
-              ...MAJOR_TAGS.map((tag) => ({ value: tag, label: `標籤：${tag}` }))
-            ];
-        if (!options.some((option) => option.value === draft.chapter)) {
-          draft.chapter = options[0].value;
+        draft.legacyType = button.dataset.chapterType;
+        const pool = BOOKS.filter((book) =>
+          book.type === "wrong" ? false : draft.legacyType === "vocab" ? book.type === "vocab" : book.type !== "vocab"
+        );
+        if (!pool.some((book) => book.id === draft.bookId)) {
+          draft.bookId = pool[0].id;
+        }
+        const book = findBook(draft.bookId);
+        const chapters = book.type === "wrong" ? draftWrongChapters() : book.chapters;
+        if (!chapters.some((chapter) => chapter.key === draft.chapter)) {
+          draft.chapter = chapters.length ? chapters[0].key : null;
         }
         render();
       });
     });
+    const bookSelect = document.getElementById("book-select");
+    if (bookSelect) {
+      bookSelect.addEventListener("change", () => {
+        const draft = state.chapterDraft;
+        draft.bookId = bookSelect.value;
+        const book = findBook(draft.bookId);
+        const chapters = book.type === "wrong" ? draftWrongChapters() : book.chapters;
+        draft.chapter = chapters.length ? chapters[0].key : null;
+        render();
+      });
+    }
     const chapterSelect = document.getElementById("chapter-select");
     if (chapterSelect) {
       chapterSelect.addEventListener("change", () => {
@@ -594,7 +927,8 @@
     const confirmButton = document.getElementById("chapter-confirm");
     if (confirmButton) {
       confirmButton.addEventListener("click", () => {
-        settings.chapterType = state.chapterDraft.chapterType;
+        if (state.chapterDraft.chapter == null) return;
+        settings.bookId = state.chapterDraft.bookId;
         settings.chapter = state.chapterDraft.chapter;
         saveSettings();
         state.chapterOpen = false;
@@ -628,11 +962,27 @@
     const count = document.getElementById("setting-count");
     if (count) {
       count.addEventListener("change", () => {
-        settings.sentenceCount = Number(count.value);
+        settings.sentenceCount = count.value === "inf" ? "inf" : Number(count.value);
         saveSettings();
         if (state.screen === "practice") {
           startSession();
         } else {
+          render();
+        }
+      });
+    }
+    document.querySelectorAll("#setting-streak button").forEach((button) => {
+      button.addEventListener("click", () => {
+        settings.wrongRemoveStreak = Number(button.dataset.streak);
+        saveSettings();
+        render();
+      });
+    });
+    const resetButton = document.getElementById("reset-stats");
+    if (resetButton) {
+      resetButton.addEventListener("click", () => {
+        if (window.confirm("確定清空所有本地學習進度？（韻母統計、錯詞本都會消失，唔可以還原）")) {
+          clearStats();
           render();
         }
       });
@@ -655,26 +1005,33 @@
   }
 
   function buildSessionBank() {
-    if (settings.chapterType === "vocab") {
+    const ref = currentChapterRef();
+    const { book, chapter } = ref;
+    if (book.type === "wrong") {
+      return wrongBookWords()
+        .map((word) => WORD_MAP.get(word))
+        .filter(Boolean)
+        .map((item) => ({ text: item.word, chars: item.chars, word: item.word }));
+    }
+    if (book.type === "vocab") {
       const vocabChapter =
-        FAANZYUN_VOCAB[settings.chapter] ||
-        (typeof EDB_VOCAB !== "undefined" ? EDB_VOCAB[settings.chapter] : null) ||
+        FAANZYUN_VOCAB[chapter.key] ||
+        (typeof EDB_VOCAB !== "undefined" ? EDB_VOCAB[chapter.key] : null) ||
         [];
       return vocabChapter.map((item) => ({
         text: item.word,
-        chars: item.chars
+        chars: item.chars,
+        word: item.word
       }));
     }
-    if (settings.chapter === "全部") {
-      return ACTIVE_BANK.slice();
-    }
-    if (POLYU_SENTENCES[settings.chapter]) {
-      return POLYU_SENTENCES[settings.chapter].map((item) => ({
+    if (book.type === "sentences") {
+      const bank = POLYU_SENTENCES[chapter.key] || [];
+      return bank.map((item) => ({
         text: item.sentence,
         chars: item.chars
       }));
     }
-    return ACTIVE_BANK.filter((sentence) => (sentence.tags || []).includes(settings.chapter));
+    return ACTIVE_BANK.filter((sentence) => (sentence.tags || []).includes(chapter.key));
   }
 
   function speakChinese(text) {
@@ -723,9 +1080,34 @@
   function startSession() {
     resetPhonemeWeights();
     const bank = buildSessionBank();
-    const count = Math.min(settings.sentenceCount, bank.length);
+    const ref = currentChapterRef();
+    const infinite = settings.sentenceCount === "inf" || ref.book.type === "wrong";
+    const weighted = ref.book.type === "vocab" || ref.book.type === "wrong";
+    state.sessionInfinite = infinite;
+    if (!bank.length) {
+      state.screen = "start";
+      render();
+      return;
+    }
+    const batchSize = infinite
+      ? Math.min(20, bank.length)
+      : Math.min(settings.sentenceCount, bank.length);
     state.screen = "practice";
-    state.sentences = shuffle(bank).slice(0, count);
+    state.sessionPool = weighted ? bank.slice() : shuffle(bank);
+    state.drawNext = () => {
+      if (!state.sessionPool.length) {
+        state.sessionPool = weighted ? bank.slice() : shuffle(bank);
+      }
+      const take = Math.min(infinite ? 20 : settings.sentenceCount, state.sessionPool.length);
+      if (weighted) {
+        const picked = drawWeighted(state.sessionPool, take);
+        const rest = state.sessionPool.filter((item) => !picked.includes(item));
+        state.sessionPool = rest;
+        return picked;
+      }
+      return state.sessionPool.splice(0, take);
+    };
+    state.sentences = state.drawNext();
     state.sentenceIndex = 0;
     state.charIndex = 0;
     state.currentInput = "";
@@ -745,20 +1127,32 @@
         <h1>粵拼打字練習</h1>
         <p class="subtitle">睇住句子逐字打粵拼，唔使打聲調。</p>
         <button id="start-btn" class="btn-primary" type="button">開始練習</button>
+        <button id="report-btn" class="btn-ghost" type="button">學習報告</button>
       </main>
     `;
     bindHeader();
     document.getElementById("start-btn").addEventListener("click", startSession);
+    document.getElementById("report-btn").addEventListener("click", () => {
+      state.screen = "report";
+      render();
+    });
+  }
+
+  function settleSession() {
+    state.screen = "results";
+    renderResults();
   }
 
   function renderPractice() {
     const sentence = currentSentence();
     const chineseCount = sentence.chars.filter((item) => isChineseChar(item.c)).length;
     const answeredCount = state.answers.filter(Boolean).length;
-    const progress = (
-      (state.sentenceIndex + answeredCount / Math.max(chineseCount, 1)) /
-      state.sentences.length
-    ) * 100;
+    const progress = state.sessionInfinite
+      ? (answeredCount / Math.max(chineseCount, 1)) * 100
+      : (
+          (state.sentenceIndex + answeredCount / Math.max(chineseCount, 1)) /
+          state.sentences.length
+        ) * 100;
 
     const cells = sentence.chars.map((item, index) => {
       if (!isChineseChar(item.c)) {
@@ -799,8 +1193,11 @@
       `
       : "";
 
+    const progressNote = state.sessionInfinite
+      ? `無限 · 第 ${state.sessionDone + 1} 句`
+      : `第 ${state.sentenceIndex + 1} / ${state.sentences.length} 句`;
     app.innerHTML = `
-      ${headerHtml(`第 ${state.sentenceIndex + 1} / ${state.sentences.length} 句`)}
+      ${headerHtml(progressNote, true)}
       <main class="practice">
         <div class="progress-row">
           <span>字 ${Math.min(answeredCount + 1, chineseCount)} / ${chineseCount}</span>
@@ -1003,11 +1400,96 @@
     document.getElementById("retry-btn").addEventListener("click", startSession);
   }
 
+  function renderReport() {
+    const weak = weakFinals(10);
+    const groups = wrongBookGroups();
+    if (!state.reportExpanded) state.reportExpanded = new Set();
+
+    const weakRows = weak.map((entry) => {
+      const example = cleanExample(FINAL_EXAMPLES[entry.final]);
+      const pct = Math.round(entry.weak * 100);
+      return `
+        <div class="weak-row">
+          <button type="button" class="weak-cell" data-speak="${escapeHtml(example || "")}" ${example ? "" : "disabled"} title="${escapeHtml(example ? `${entry.final}・${example}` : entry.final)}">${escapeHtml(entry.final)}</button>
+          <div class="weak-bar"><div class="weak-fill" style="width:${pct}%"></div></div>
+          <span class="weak-meta">${pct}% · 錯 ${entry.w} / 計 ${entry.r + entry.w}</span>
+        </div>
+      `;
+    }).join("");
+
+    const groupHtml = groups.length ? groups.map((group) => {
+      const open = state.reportExpanded.has(group.label);
+      const items = open
+        ? group.words.map((word) => `
+            <div class="wrong-item">
+              <button type="button" class="wrong-word" data-speak="${escapeHtml(word)}">${escapeHtml(word)}</button>
+              <span class="wrong-jp">${escapeHtml(wordJpDisplay(word))}</span>
+              <span class="wrong-count">錯 ${stats.words[word].w} 次</span>
+            </div>
+          `).join("")
+        : "";
+      return `
+        <div class="wrong-group">
+          <button type="button" class="wrong-head" data-group="${escapeHtml(group.label)}">
+            <span>${escapeHtml(group.label)}</span>
+            <span class="wrong-head-count">${group.words.length} 詞 ${open ? "▲" : "▼"}</span>
+          </button>
+          ${open ? `<div class="wrong-list">${items}</div>` : ""}
+        </div>
+      `;
+    }).join("") : '<p class="report-empty">而家冇錯詞，繼續保持！</p>';
+
+    app.innerHTML = `
+      ${headerHtml("學習報告")}
+      <main class="report">
+        <h1>學習報告</h1>
+        <section class="report-card">
+          <h2>薄弱韻母 Top 10</h2>
+          ${weak.length ? `<div class="weak-list">${weakRows}</div>` : '<p class="report-empty">仲未夠數據，每個韻母練夠 3 次先會上榜。</p>'}
+        </section>
+        <section class="report-card">
+          <h2>錯詞本</h2>
+          ${groupHtml}
+          <button type="button" class="btn-primary" id="wrongbook-start-btn" ${groups.length ? "" : "disabled"}>錯詞複習（無限）</button>
+        </section>
+        <button id="report-back-btn" class="btn-ghost" type="button">返回主頁</button>
+      </main>
+    `;
+
+    bindHeader();
+    app.querySelectorAll("[data-speak]").forEach((el) => {
+      el.addEventListener("click", () => speakChinese(el.dataset.speak));
+    });
+    app.querySelectorAll(".wrong-head").forEach((el) => {
+      el.addEventListener("click", () => {
+        const label = el.dataset.group;
+        if (state.reportExpanded.has(label)) state.reportExpanded.delete(label);
+        else state.reportExpanded.add(label);
+        render();
+      });
+    });
+    const wrongBtn = document.getElementById("wrongbook-start-btn");
+    if (wrongBtn && groups.length) {
+      wrongBtn.addEventListener("click", () => {
+        settings.bookId = "wrong-book";
+        settings.chapter = groups[0].label;
+        saveSettings();
+        startSession();
+      });
+    }
+    document.getElementById("report-back-btn").addEventListener("click", () => {
+      state.screen = "start";
+      render();
+    });
+  }
+
   function render() {
     document.body.dataset.screen = state.screen;
     document.body.dataset.modal = state.settingsOpen || state.chapterOpen ? "open" : "none";
     if (state.screen === "start") {
       renderStart();
+    } else if (state.screen === "report") {
+      renderReport();
     } else if (state.screen === "practice") {
       renderPractice();
     } else {
@@ -1044,6 +1526,7 @@
 
     const result = analyze(char.jp, typed);
     const tip = buildTip(char.jp, typed);
+    recordCharStats(char.jp, typed);
     const record = {
       char: char.c,
       typedRaw,
@@ -1081,11 +1564,25 @@
       return;
     }
 
+    if (sentence.word) {
+      const answered = sentence.chars
+        .map((item, index) => ({ item, index }))
+        .filter(({ item }) => isChineseChar(item.c) && item.jp);
+      const allCorrect = answered.every(({ index }) => state.answers[index] && state.answers[index].correct);
+      recordWordAttempt(sentence.word, allCorrect, currentChapterLabel());
+    }
     if (settings.soundEnabled) speakChinese(sentence.text);
     state.sentenceIndex += 1;
+    state.sessionDone = (state.sessionDone || 0) + 1;
     if (state.sentenceIndex >= state.sentences.length) {
-      renderResults();
-      return;
+      if (state.sessionInfinite) {
+        state.sentences = state.drawNext();
+        state.sentenceIndex = 0;
+      } else {
+        state.screen = "results";
+        renderResults();
+        return;
+      }
     }
 
     state.charIndex = 0;
